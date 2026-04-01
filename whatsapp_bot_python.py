@@ -1,37 +1,55 @@
 import os
-import json
-import flask
-from flask import request, jsonify
+import random
+import time
+from flask import Flask, request, jsonify
+from twilio.rest import Client
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
-# Webhook verification
-@app.route('/webhook', methods=['GET'])
-def verify_webhook():
-    if request.args.get('hub.mode') == 'subscribe' and request.args.get('hub.verify_token') == os.environ.get('VERIFY_TOKEN'):
-        return request.args['hub.challenge'], 200
-    return "Invalid verification token", 403
+# Twilio credentials
+twilio_account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
+twilio_auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+client = Client(twilio_account_sid, twilio_auth_token)
 
-# Message handling
+# Commands categories
+def get_commands_menu():
+    return '''
+    🌟 Welcome to the WhatsApp Bot 🌟
+        Command Categories:
+        1. 🤖 AI Commands
+        2. 🎨 Anime Commands
+        3. 📥 Download Commands
+        4. 🎮 Games Commands
+        5. 👥 Group Commands
+        6. 🖼️ Logo Commands
+        7. 👤 Owner Commands
+        8. 🏷️ Sticker Commands
+        9. 🛠️ Tools Commands
+        10. 🔊 Voice Commands
+        11. 🌀 Other Commands
+
+    Use /menu to see this menu anytime!
+    '''
+
 @app.route('/webhook', methods=['POST'])
-def message_handler():
-    data = request.get_json()
-    if 'entry' in data:
-        for entry in data['entry']:
-            for change in entry.get('changes', []):
-                if 'value' in change:
-                    handle_message(change['value'])
-    return jsonify(status='received'), 200
+def webhook():
+    incoming_msg = request.values.get('Body', '').strip()  
+    response = ""  
 
-def handle_message(message):
-    # Process and respond to the message
-def process_command(command):
-    # Parse commands and take action based on them
+    # Check for menu command
+    if incoming_msg.lower() == '/menu':
+        response = get_commands_menu()
+    else:
+        response = "Unknown command. Type /menu to see the options."
 
-# Error handling
-@app.errorhandler(Exception)
-def handle_exception(e):
-    return jsonify(error=str(e)), 500
+    # Send response back to user
+    msg = client.messages.create(
+        body=response,
+        from_='whatsapp:+14155238886',  # Your Twilio number
+        to=request.values.get('From')
+    )
+
+    return jsonify({'status': 'success', 'message': 'response sent'})
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(debug=True)
